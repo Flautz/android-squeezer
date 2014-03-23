@@ -302,11 +302,9 @@ class CliClient {
         pageSize = service.getResources().getInteger(R.integer.PageSize);
     }
 
-
     // All requests are tagged with a correlation id, which can be used when
     // asynchronous responses are received.
     private int _correlationid = 0;
-
 
     /**
      * Send the supplied commands to the SqueezeboxServer.
