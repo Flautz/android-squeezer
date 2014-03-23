@@ -300,6 +300,8 @@ public abstract class BaseItemView<T extends Item> implements ItemView<T> {
 
         if (viewHolder == null) {
             convertView = getLayoutInflater().inflate(layoutResource, parent, false);
+            assert convertView != null;
+
             viewHolder = new ViewHolder();
             viewHolder.text1 = (TextView) convertView.findViewById(R.id.text1);
             viewHolder.text2 = (TextView) convertView.findViewById(R.id.text2);
