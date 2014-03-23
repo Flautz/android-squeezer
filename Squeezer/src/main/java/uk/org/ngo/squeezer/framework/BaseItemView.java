@@ -155,7 +155,7 @@ public abstract class BaseItemView<T extends Item> implements ItemView<T> {
         mAdapter = adapter;
     }
 
-    public LayoutInflater getLayoutInflater() {
+    protected LayoutInflater getLayoutInflater() {
         return mLayoutInflater;
     }
 
