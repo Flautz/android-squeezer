@@ -48,12 +48,15 @@ import uk.org.ngo.squeezer.widget.SquareImageView;
  * <p/>
  * This class supports views that have a {@link TextView} to display the primary information about
  * the {@link Item} and can optionally enable additional views.  The layout is defined in {@code
- * res/layout/list_item.xml}. <ul> <li>A {@link SquareImageView} suitable for displaying icons</li>
- * <li>A second, smaller {@link TextView} for additional item information</li> <li>A {@link
- * ListItemImageButton} that shows a disclosure triangle for a context menu</li> </ul> The view can
- * display an item in one of two states.  The primary state is when the data to be inserted in to
- * the view is known, and represented by a complete {@link Item} subclass. The loading state is when
- * the data type is known, but has not been fetched from the server yet.
+ * res/layout/list_item.xml}.
+ * <ul>
+ * <li>A {@link SquareImageView} suitable for displaying icons</li>
+ * <li>A second, smaller {@link TextView} for additional item information</li>
+ * <li>A {@link ListItemImageButton} that shows a disclosure triangle for a context menu</li>
+ * </ul>
+ * The view can display an item in one of two states.  The primary state is when the data to be
+ * inserted in to the view is known, and represented by a complete {@link Item} subclass. The
+ * loading state is when the data type is known, but has not been fetched from the server yet.
  * <p/>
  * To customise the view's display create an {@link EnumSet} of {@link ViewParams} and pass it to
  * {@link #setViewParams(EnumSet)} or {@link #setLoadingViewParams(EnumSet)} depending on whether
@@ -84,7 +87,7 @@ public abstract class BaseItemView<T extends Item> implements ItemView<T> {
     private Creator<T> mCreator;
 
     /**
-     * Parameters that control which additional views will be enabeld in the item view.
+     * Parameters that control which additional views will be enabled in the item view.
      */
     public enum ViewParams {
         /**
@@ -223,7 +226,7 @@ public abstract class BaseItemView<T extends Item> implements ItemView<T> {
     /**
      * Binds the item's name to {@link ViewHolder#text1}.
      * <p/>
-     * OVerride this instead of {@link #getAdapterView(View, ViewGroup, Item, ImageFetcher)} if the
+     * Override this instead of {@link #getAdapterView(View, ViewGroup, Item, ImageFetcher)} if the
      * default layouts are sufficient.
      *
      * @param view The view that contains the {@link ViewHolder}

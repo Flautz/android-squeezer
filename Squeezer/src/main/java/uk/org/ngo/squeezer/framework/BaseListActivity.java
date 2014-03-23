@@ -229,7 +229,7 @@ public abstract class BaseListActivity<T extends Item> extends ItemListActivity 
                 mRetainFragment.put(TAG_ADAPTER, itemAdapter);
             } else {
                 // We have just retained the item adapter, we need to create a new
-                // item view logic, cause it holds a reference to the old activity
+                // item view logic, because it holds a reference to the old activity.
                 itemAdapter.setItemView(createItemView());
                 // Update views with the count from the retained item adapter
                 itemAdapter.onCountUpdated();
