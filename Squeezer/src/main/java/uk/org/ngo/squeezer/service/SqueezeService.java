@@ -532,7 +532,8 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
             @Override
             public void handle(List<String> tokens) {
                 Log.v(TAG, "Prefset received: " + tokens);
-                if (tokens.size() > 4 && "server".equals(tokens.get(2)) && "volume".equals(tokens.get(3))) {
+                if (tokens.size() > 4 && "server".equals(tokens.get(2)) && "volume".equals(
+                        tokens.get(3))) {
                     String playerId = Util.decode(tokens.get(0));
                     int newVolume = Util.parseDecimalIntOrZero(tokens.get(4));
                     updatePlayerVolume(playerId, newVolume);
@@ -874,46 +875,20 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
      * Manages the state of any ongoing notification based on the player and connection state.
      */
     private void updateOngoingNotification() {
-        boolean playing = connectionState.getActivePlayerState().isPlaying();
-        String songName = connectionState.getActivePlayerState().getCurrentSongName();
-        String playerName = connectionState.getActivePlayer() != null ? connectionState
-                .getActivePlayer().getName() : "squeezer";
+        PlayerState activePlayerState = connectionState.getActivePlayerState();
 
         // Update scrobble state, if either we're currently scrobbling, or we
         // were (to catch the case where we started scrobbling a song, and the
         // user went in to settings to disable scrobbling).
         if (scrobblingEnabled || scrobblingPreviouslyEnabled) {
             scrobblingPreviouslyEnabled = scrobblingEnabled;
-            Song s = connectionState.getActivePlayerState().getCurrentSong();
-
-            if (s != null) {
-                Log.v(TAG, "Scrobbling, playing is: " + playing);
-                Intent i = new Intent();
-
-                if (Scrobble.haveScrobbleDroid()) {
-                    // http://code.google.com/p/scrobbledroid/wiki/DeveloperAPI
-                    i.setAction("net.jjc1138.android.scrobbler.action.MUSIC_STATUS");
-                    i.putExtra("playing", playing);
-                    i.putExtra("track", songName);
-                    i.putExtra("album", s.getAlbum());
-                    i.putExtra("artist", s.getArtist());
-                    i.putExtra("secs", connectionState.getActivePlayerState().getCurrentSongDuration());
-                    i.putExtra("source", "P");
-                } else if (Scrobble.haveSls()) {
-                    // http://code.google.com/p/a-simple-lastfm-scrobbler/wiki/Developers
-                    i.setAction("com.adam.aslfms.notify.playstatechanged");
-                    i.putExtra("state", playing ? 0 : 2);
-                    i.putExtra("app-name", getText(R.string.app_name));
-                    i.putExtra("app-package", "uk.org.ngo.squeezer");
-                    i.putExtra("track", songName);
-                    i.putExtra("album", s.getAlbum());
-                    i.putExtra("artist", s.getArtist());
-                    i.putExtra("duration", connectionState.getActivePlayerState().getCurrentSongDuration());
-                    i.putExtra("source", "P");
-                }
-                sendBroadcast(i);
-            }
+            Scrobble.scrobbleFromPlayerState(this, activePlayerState);
         }
+
+        Song currentSong = (activePlayerState != null ? activePlayerState.getCurrentSong() : null);
+        boolean playing = (activePlayerState != null && activePlayerState.isPlaying());
+        String playerName = connectionState.getActivePlayer() != null ? connectionState
+                .getActivePlayer().getName() : "squeezer";
 
         if (!playing) {
             if (!mUpdateOngoingNotification) {
@@ -929,9 +904,9 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
         Intent showNowPlaying = new Intent(this, NowPlayingActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         PendingIntent pIntent = PendingIntent.getActivity(this, 0, showNowPlaying, 0);
-        if (playing) {
+        if (playing && currentSong != null) {
             status.setLatestEventInfo(this,
-                    getString(R.string.notification_playing_text, playerName), songName, pIntent);
+                    getString(R.string.notification_playing_text, playerName), currentSong.getName(), pIntent);
             status.flags |= Notification.FLAG_ONGOING_EVENT;
             status.icon = R.drawable.stat_notify_musicplayer;
         } else {
