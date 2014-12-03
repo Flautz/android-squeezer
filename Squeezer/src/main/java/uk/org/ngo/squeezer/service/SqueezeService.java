@@ -221,6 +221,7 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
 
     void disconnect(boolean isServerDisconnect) {
         connectionState.disconnect(this, isServerDisconnect && !mHandshakeComplete);
+        mEventBus.removeAllStickyEvents();
         mHandshakeComplete = false;
         clearOngoingNotification();
     }
