@@ -241,6 +241,7 @@ public class CurrentPlaylistActivity extends BaseListActivity<Song> {
         return getService().getCurrentPlaylist();
     }
 
+    @Override
     public void onEvent(HandshakeComplete event) {
         super.onEvent(event);
         player = getService().getActivePlayer();

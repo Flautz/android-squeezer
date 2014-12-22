@@ -190,7 +190,8 @@ public class PlayerListActivity extends ItemListActivity implements
     }
 
     public void onEventMainThread(HandshakeComplete event) {
-        mResultsExpandableListView.setAdapter(mResultsAdapter);
+        if (mResultsExpandableListView.getExpandableListAdapter() == null)
+            mResultsExpandableListView.setAdapter(mResultsAdapter);
         updateAndExpandPlayerList();
     }
 
@@ -198,6 +199,7 @@ public class PlayerListActivity extends ItemListActivity implements
         uiThreadHandler.obtainMessage(UiThreadHandler.PLAYER_STATE, 0, 0).sendToTarget();
     }
 
+    @Override
     public void onEvent(PlayerVolume event) {
         uiThreadHandler.obtainMessage(UiThreadHandler.VOLUME_CHANGE, event.mVolume,
                 0, event.mPlayer).sendToTarget();

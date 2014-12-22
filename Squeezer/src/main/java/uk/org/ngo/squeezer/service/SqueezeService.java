@@ -36,10 +36,9 @@ import android.support.annotation.Nullable;
 import android.util.Base64;
 import android.util.Log;
 
+import com.crashlytics.android.Crashlytics;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-
-import com.crashlytics.android.Crashlytics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -75,6 +74,7 @@ import uk.org.ngo.squeezer.model.Plugin;
 import uk.org.ngo.squeezer.model.PluginItem;
 import uk.org.ngo.squeezer.model.Song;
 import uk.org.ngo.squeezer.model.Year;
+import uk.org.ngo.squeezer.service.event.ConnectionChanged;
 import uk.org.ngo.squeezer.service.event.HandshakeComplete;
 import uk.org.ngo.squeezer.service.event.MusicChanged;
 import uk.org.ngo.squeezer.service.event.PlayStatusChanged;
@@ -221,8 +221,9 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
     }
 
     void disconnect(boolean isServerDisconnect) {
-        connectionState.disconnect(this, isServerDisconnect && !mHandshakeComplete);
         mEventBus.removeAllStickyEvents();
+        connectionState.disconnect(this, isServerDisconnect && !mHandshakeComplete);
+        mEventBus.post(new ConnectionChanged(false, false, false));
         mHandshakeComplete = false;
         clearOngoingNotification();
     }
@@ -354,7 +355,9 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
                 mHandshakeComplete = true;
                 strings();
 
-                mEventBus.postSticky(new HandshakeComplete());
+                mEventBus.postSticky(new HandshakeComplete(
+                        connectionState.canFavorites(), connectionState.canMusicfolder(),
+                        connectionState.canMusicfolder(), connectionState.canRandomplay()));
             }
         });
 
@@ -579,7 +582,13 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
 
     void onLineReceived(String serverLine) {
         Log.v(TAG, "RECV: " + serverLine);
-        Crashlytics.setString("lastReceivedLine", serverLine);
+
+        // Make sure that username/password do not make it to Crashlytics.
+        if (serverLine.startsWith("login ")) {
+            Crashlytics.setString("lastReceivedLine", "login [username] [password]");
+        } else {
+            Crashlytics.setString("lastReceivedLine", serverLine);
+        }
 
         List<String> tokens = Arrays.asList(mSpaceSplitPattern.split(serverLine));
         if (tokens.size() < 2) {
@@ -939,7 +948,7 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
      * instead of as documented
      * <pre>
      * login user wrongpassword
-     * (Connection terminted)
+     * (Connection terminated)
      * </pre>
      * therefore a disconnect when handshake (the next step after authentication) is not completed,
      * is considered an authentication failure.
@@ -1088,8 +1097,14 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
                     .setVisibleInDownloadsUi(false)
                     .addRequestHeader("Authorization", "Basic " + base64EncodedCredentials);
             long downloadId = downloadManager.enqueue(request);
+
+            Crashlytics.log("Registering new download");
+            Crashlytics.log("downloadId: " + downloadId);
+            Crashlytics.log("tempFile: " + tempFile);
+            Crashlytics.log("localPath: " + localPath);
+
             if (!downloadDatabase.registerDownload(downloadId, tempFile, localPath)) {
-                Log.w(TAG, "Could not register download entry, download cancelled");
+                Crashlytics.log(Log.WARN, TAG, "Could not register download entry for: " + downloadId);
                 downloadManager.remove(downloadId);
             }
         }
@@ -1228,58 +1243,6 @@ public class SqueezeService extends Service implements ServiceCallbackList.Servi
         private boolean canPower() {
             Player player = connectionState.getActivePlayer();
             return connectionState.isConnected() && player != null && player.isCanpoweroff();
-        }
-
-        /**
-         * Does the server support the "<code>favorites items</code>" command?
-         *
-         * @return True if it does, false otherwise.
-         */
-        @Override
-        public boolean canFavorites() throws HandshakeNotCompleteException{
-            if (!mHandshakeComplete) {
-                throw new HandshakeNotCompleteException("Handshake with server has not completed.");
-            }
-            return connectionState.canFavorites();
-        }
-
-        /**
-         * Does the server support the "<code>musicfolders</code>" command?
-         *
-         * @return True if it does, false otherwise.
-         */
-        @Override
-        public boolean canMusicfolder() throws HandshakeNotCompleteException {
-            if (!mHandshakeComplete) {
-                throw new HandshakeNotCompleteException("Handshake with server has not completed.");
-            }
-            return connectionState.canMusicfolder();
-        }
-
-        /**
-         * Does the server support the "<code>myapps items</code>" command?
-         *
-         * @return True if it does, false otherwise.
-         */
-        @Override
-        public boolean canMyApps() throws HandshakeNotCompleteException {
-            if (!mHandshakeComplete) {
-                throw new HandshakeNotCompleteException("Handshake with server has not completed.");
-            }
-            return connectionState.canMyApps();
-        }
-
-        /**
-         * Does the server support the "<code>randomplay</code>" command?
-         *
-         * @return True if it does, false otherwise.
-         */
-        @Override
-        public boolean canRandomplay() throws HandshakeNotCompleteException {
-            if (!mHandshakeComplete) {
-                throw new HandshakeNotCompleteException("Handshake with server has not completed.");
-            }
-            return connectionState.canRandomplay();
         }
 
         @Override

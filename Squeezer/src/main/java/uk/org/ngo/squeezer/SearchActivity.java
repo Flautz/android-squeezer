@@ -124,9 +124,8 @@ public class SearchActivity extends ItemListActivity {
 
     /**
      * Saves the search query, and attempts to query the service for <code>searchString</code>. If
-     * the service handshake has not completed yet then
-     * {@link #onEventMainThread(uk.org.ngo.squeezer.service.event.HandshakeComplete)} will re-query
-     * for the saved search query.
+     * the service binding has not completed yet then {@link #onEventMainThread(HandshakeComplete)}
+     * will re-query for the saved search query.
      *
      * @param searchString The string to search fo.
      */

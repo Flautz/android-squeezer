@@ -222,8 +222,7 @@ public abstract class ItemListActivity extends BaseActivity {
     }
 
     /**
-     * Marks the handshake as complete, and orders any pages requested before the handshake
-     * completed.
+     * Orders any pages requested before the handshake completed.
      */
     public void onEvent(HandshakeComplete event) {
         // Order any pages that were requested before the handshake complete.

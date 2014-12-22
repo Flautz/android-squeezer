@@ -205,7 +205,6 @@ public abstract class BaseListActivity<T extends Item> extends ItemListActivity 
         mRetainFragment.put(TAG_POSITION, mListView.getFirstVisiblePosition());
     }
 
-
     /**
      * @return The current {@link ItemAdapter}'s {@link ItemView}
      */
