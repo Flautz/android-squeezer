@@ -60,7 +60,8 @@ dependencies {
     // Changelogs, see https://github.com/cketti/ckChangeLog.
     compile 'de.cketti.library.changelog:ckchangelog:1.2.0'
 
-    androidTestCompile files('libs/espresso-1.1-bundled.jar')
+    androidTestCompile 'com.android.support.test.espresso:espresso-core:2.0'
+    androidTestCompile 'com.android.support.test:testing-support-lib:0.1'
 }
 
 android {
@@ -76,7 +77,7 @@ android {
     defaultConfig {
         minSdkVersion 8
         targetSdkVersion 21
-        testInstrumentationRunner "com.google.android.apps.common.testing.testrunner.GoogleInstrumentationTestRunner"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
         buildConfigField "String", "GIT_DESCRIPTION", "\"${gitDescription}\""
 
@@ -87,6 +88,23 @@ android {
     lintOptions {
         // Downgrade missing translations to non-fatal severity.
         warning 'MissingTranslation'
+    }
+
+    packagingOptions {
+        exclude 'LICENSE.txt'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            // You could use 'proguardFile "proguard.cfg"' here and get the
+            // same effect, but this ensures that any changes to
+            // proguard-android-optimize.txt are automatically included.
+            proguardFile getDefaultProguardFile('proguard-android-optimize.txt')
+            proguardFile "proguard-acra.cfg"
+            proguardFile "proguard-guava.cfg"
+            proguardFile "proguard-squeezer.cfg"
+        }
     }
 
     signingConfigs {

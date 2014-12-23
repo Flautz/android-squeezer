@@ -1,27 +1,22 @@
 package uk.org.ngo.squeezer.test.espresso;
 
-import com.google.android.apps.common.testing.ui.espresso.matcher.BoundedMatcher;
-
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
-
 import android.test.ActivityInstrumentationTestCase2;
-import android.view.View;
-import android.widget.Adapter;
-import android.widget.AdapterView;
-
-import java.util.Map;
 
 import uk.org.ngo.squeezer.HomeActivity;
 import uk.org.ngo.squeezer.R;
 
-import static com.google.android.apps.common.testing.ui.espresso.Espresso.onView;
-import static com.google.android.apps.common.testing.ui.espresso.assertion.ViewAssertions.matches;
-import static com.google.android.apps.common.testing.ui.espresso.matcher.ViewMatchers.withId;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
+import static android.support.test.espresso.Espresso.onData;
+import static android.support.test.espresso.Espresso.onView;
+import static android.support.test.espresso.assertion.ViewAssertions.matches;
+import static android.support.test.espresso.matcher.ViewMatchers.hasDescendant;
+import static android.support.test.espresso.matcher.ViewMatchers.withId;
+import static android.support.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anything;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static uk.org.ngo.squeezer.test.espresso.IconRowAdapterMatchers.withAdaptedData;
+import static uk.org.ngo.squeezer.test.espresso.IconRowAdapterMatchers.withItemContent;
 
 /**
  * https://code.google.com/p/android-test-kit/wiki/EspressoStartGuide
@@ -41,54 +36,29 @@ public class HomeActivityTest extends ActivityInstrumentationTestCase2<HomeActiv
     }
 
     public void testHomeActivityMenu() {
+        // Example: Test that the first view in the list shows "Artists".
+        onData(anything())
+                .inAdapterView(withId(R.id.item_list))
+                .atPosition(0)
+                .check(matches(hasDescendant(
+                        allOf(withId(R.id.text1), withText(containsString("Artists"))))));
+
+        // Example: Test that there is an item in the adapter that contains the string
+        // "Albums" (does not care where in the adapter it is).
         onView(withId(R.id.item_list))
-                .check(matches(withAdaptedData(withItemContent("item: 168"))));
-    }
+                .check(matches(withAdaptedData(withItemContent("Albums"))));
 
-    public static Matcher<Object> withItemContent(String expectedText) {
-        checkNotNull(expectedText);
-        return withItemContent(equalTo(expectedText));
-    }
+        // Example: Test that the string "Test entry" does not appear in the adapter.
+        onView(withId(R.id.item_list))
+                .check(matches(not(withAdaptedData(withItemContent("Test entry")))));
 
-    public static Matcher<Object> withItemContent(final Matcher<String> itemTextMatcher){
-        checkNotNull(itemTextMatcher);
-        return new BoundedMatcher<Object, Map>(Map.class) {
-            @Override
-            public boolean matchesSafely(Map map) {
-                return hasEntry(equalTo("STR"), itemTextMatcher).matches(map);
-            }
+        // Tests to implement
 
-            @Override
-            public void describeTo(Description description) {
-                description.appendText("with item content: ");
-                itemTextMatcher.describeTo(description);
-            }
-        };
-    }
-
-    private static Matcher<View> withAdaptedData(final Matcher<Object> dataMatcher) {
-        return new TypeSafeMatcher<View>() {
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendText("with class name: ");
-                dataMatcher.describeTo(description);
-            }
-
-            @Override
-            public boolean matchesSafely(View view) {
-                if (!(view instanceof AdapterView)) {
-                    return false;
-                }
-                @SuppressWarnings("rawtypes")
-                Adapter adapter = ((AdapterView) view).getAdapter();
-                for (int i = 0; i < adapter.getCount(); i++) {
-                    if (dataMatcher.matches(adapter.getItem(i))) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        };
+        // Inject a fake service that turns off/on all combinations of
+        // - favorites
+        // - music folder
+        // - apps
+        // - random play
+        // and verify that the menu is correct for all of them
     }
 }
