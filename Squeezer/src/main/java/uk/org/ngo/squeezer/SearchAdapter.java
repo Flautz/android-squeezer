@@ -29,7 +29,6 @@ import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.ExpandableListContextMenuInfo;
 import android.widget.TextView;
 
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ import uk.org.ngo.squeezer.model.Album;
 import uk.org.ngo.squeezer.model.Artist;
 import uk.org.ngo.squeezer.model.Genre;
 import uk.org.ngo.squeezer.model.Song;
-import uk.org.ngo.squeezer.util.ImageFetcher;
 
 public class SearchAdapter extends BaseExpandableListAdapter implements
         OnCreateContextMenuListener {
@@ -62,24 +60,21 @@ public class SearchAdapter extends BaseExpandableListAdapter implements
     private final Map<Class<? extends Item>, ItemAdapter<? extends Item>> childAdapterMap
             = new HashMap<Class<? extends Item>, ItemAdapter<? extends Item>>();
 
-    public SearchAdapter(SearchActivity activity, ImageFetcher imageFetcher) {
+    public SearchAdapter(SearchActivity activity) {
         this.activity = activity;
 
         ItemAdapter<?>[] adapters = {
-                new ItemAdapter<Song>(new SongViewWithArt(activity), imageFetcher),
-                new ItemAdapter<Album>(new AlbumView(activity), imageFetcher),
+                new ItemAdapter<Song>(new SongViewWithArt(activity)),
+                new ItemAdapter<Album>(new AlbumView(activity)),
                 new ItemAdapter<Artist>(new ArtistView(activity)),
                 new ItemAdapter<Genre>(new GenreView(activity)),
         };
 
-        ((SongViewWithArt) adapters[0].getItemView()).setDetails(EnumSet.of(
-                SongView.Details.DURATION,
-                SongView.Details.ALBUM,
-                SongView.Details.ARTIST));
+        ((SongViewWithArt) adapters[0].getItemView()).setDetails(
+                SongView.DETAILS_DURATION | SongView.DETAILS_ALBUM | SongView.DETAILS_ARTIST);
 
-        ((AlbumView) adapters[1].getItemView()).setDetails(EnumSet.of(
-                AlbumView.Details.ARTIST,
-                AlbumView.Details.YEAR));
+        ((AlbumView) adapters[1].getItemView()).setDetails(
+                AlbumView.DETAILS_ARTIST | AlbumView.DETAILS_YEAR);
 
         childAdapters = adapters;
         for (ItemAdapter<? extends Item> itemAdapter : childAdapters) {

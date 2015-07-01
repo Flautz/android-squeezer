@@ -16,14 +16,20 @@
 
 package uk.org.ngo.squeezer.model;
 
+import android.net.Uri;
 import android.os.Parcel;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import com.bluelinelabs.logansquare.annotation.JsonObject;
+import com.google.common.base.Strings;
 
 import java.util.Map;
 
 import uk.org.ngo.squeezer.Util;
 import uk.org.ngo.squeezer.framework.ArtworkItem;
 
-
+@JsonObject
 public class Album extends ArtworkItem {
 
     @Override
@@ -41,6 +47,18 @@ public class Album extends ArtworkItem {
     @Override
     public String getName() {
         return name;
+    }
+
+    @NonNull
+    private Uri mArtworkUrl = Uri.EMPTY;
+
+    @NonNull
+    public Uri getArtworkUrl() {
+        return mArtworkUrl;
+    }
+
+    public void setArtworkUrl(@NonNull Uri artworkUrl) {
+        mArtworkUrl = artworkUrl;
     }
 
     public Album setName(String name) {
@@ -79,17 +97,24 @@ public class Album extends ArtworkItem {
         setArtist(record.get("artist"));
         setYear(Util.parseDecimalIntOrZero(record.get("year")));
         setArtwork_track_id(record.get("artwork_track_id"));
+        mArtworkUrl = Uri.parse(Strings.nullToEmpty(record.get("artwork_url")));
     }
 
     public static final Creator<Album> CREATOR = new Creator<Album>() {
+        @Override
         public Album[] newArray(int size) {
             return new Album[size];
         }
 
+        @Override
         public Album createFromParcel(Parcel source) {
             return new Album(source);
         }
     };
+
+    public Album() {
+
+    }
 
     private Album(Parcel source) {
         setId(source.readString());
@@ -97,19 +122,22 @@ public class Album extends ArtworkItem {
         artist = source.readString();
         year = source.readInt();
         setArtwork_track_id(source.readString());
+        mArtworkUrl = Uri.parse(Strings.nullToEmpty(source.readString()));
     }
 
+    @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(getId());
         dest.writeString(name);
         dest.writeString(artist);
         dest.writeInt(year);
         dest.writeString(getArtwork_track_id());
+        dest.writeString(mArtworkUrl.toString());
     }
 
     @Override
-    public String toString() {
-        return "id=" + getId() + ", name=" + name + ", artist=" + artist + ", year=" + year;
+    public String toStringOpen() {
+        return super.toStringOpen() + ", artist: " + artist + ", year: " + year;
     }
 
 }

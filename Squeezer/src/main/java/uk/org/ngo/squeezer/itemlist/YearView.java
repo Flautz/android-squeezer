@@ -23,18 +23,21 @@ import android.view.View;
 import uk.org.ngo.squeezer.R;
 import uk.org.ngo.squeezer.framework.BaseItemView;
 import uk.org.ngo.squeezer.framework.ItemListActivity;
+import uk.org.ngo.squeezer.framework.SpinnerItemView;
 import uk.org.ngo.squeezer.model.Year;
 
-public class YearView extends BaseItemView<Year> {
+public class YearView extends SpinnerItemView<Year> {
 
     public YearView(ItemListActivity activity) {
         super(activity);
     }
 
+    @Override
     public String getQuantityString(int quantity) {
         return getActivity().getResources().getQuantityString(R.plurals.year, quantity);
     }
 
+    @Override
     public void onItemSelected(int index, Year item) {
         AlbumListActivity.show(getActivity(), item);
     }

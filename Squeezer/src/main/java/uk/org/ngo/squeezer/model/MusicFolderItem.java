@@ -16,8 +16,12 @@
 
 package uk.org.ngo.squeezer.model;
 
+import android.net.Uri;
 import android.os.Parcel;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+
+import com.google.common.base.Strings;
 
 import java.util.Map;
 
@@ -82,30 +86,42 @@ public class MusicFolderItem extends PlaylistItem {
         return this;
     }
 
-    @Nullable
-    private String url;
+    @NonNull
+    private Uri url = Uri.EMPTY;
 
-    @Nullable
-    public String getUrl() {
+    @NonNull
+    public Uri getUrl() {
         return url;
     }
 
-    public void setUrl(@Nullable String url) {
+    public void setUrl(@NonNull Uri url) {
         this.url = url;
+    }
+
+    /** The URL to use to download the song. */
+    @NonNull
+    private Uri mDownloadUrl = Uri.EMPTY;
+
+    @NonNull
+    public Uri getDownloadUrl() {
+        return mDownloadUrl;
     }
 
     public MusicFolderItem(Map<String, String> record) {
         setId(record.get("id"));
         name = record.get("filename");
         type = record.get("type");
-        url = record.get("url");
+        url = Uri.parse(Strings.nullToEmpty(record.get("url")));
+        mDownloadUrl = Uri.parse(Strings.nullToEmpty(record.get("download_url")));
     }
 
     public static final Creator<MusicFolderItem> CREATOR = new Creator<MusicFolderItem>() {
+        @Override
         public MusicFolderItem[] newArray(int size) {
             return new MusicFolderItem[size];
         }
 
+        @Override
         public MusicFolderItem createFromParcel(Parcel source) {
             return new MusicFolderItem(source);
         }
@@ -115,18 +131,21 @@ public class MusicFolderItem extends PlaylistItem {
         setId(source.readString());
         name = source.readString();
         type = source.readString();
-        url = source.readString();
+        url = Uri.parse(source.readString());
+        mDownloadUrl = Uri.parse(source.readString());
     }
 
+    @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(getId());
         dest.writeString(name);
         dest.writeString(type);
-        dest.writeString(url);
+        dest.writeString(url.toString());
+        dest.writeString(mDownloadUrl.toString());
     }
 
     @Override
-    public String toString() {
-        return "id=" + getId() + ", name=" + name + ", type=" + type;
+    public String toStringOpen() {
+        return super.toStringOpen() + ", type: " + type;
     }
 }

@@ -19,27 +19,34 @@ package uk.org.ngo.squeezer.itemlist;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.View;
+import android.view.ViewGroup;
 
 import uk.org.ngo.squeezer.R;
+import uk.org.ngo.squeezer.Util;
 import uk.org.ngo.squeezer.framework.BaseItemView;
 import uk.org.ngo.squeezer.framework.ItemListActivity;
+import uk.org.ngo.squeezer.framework.SpinnerItemView;
 import uk.org.ngo.squeezer.model.Genre;
+import uk.org.ngo.squeezer.util.ImageFetcher;
 
-public class GenreView extends BaseItemView<Genre> {
+public class GenreView extends SpinnerItemView<Genre> {
 
     public GenreView(ItemListActivity activity) {
         super(activity);
     }
 
+    @Override
     public String getQuantityString(int quantity) {
         return getActivity().getResources().getQuantityString(R.plurals.genre, quantity);
     }
 
+    @Override
     public void onItemSelected(int index, Genre item) {
         AlbumListActivity.show(getActivity(), item);
     }
 
     // XXX: Make this a menu resource.
+    @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
         super.onCreateContextMenu(menu, v, menuInfo);
 
@@ -50,5 +57,4 @@ public class GenreView extends BaseItemView<Genre> {
         menu.add(Menu.NONE, R.id.add_to_playlist, Menu.NONE, R.string.ADD_TO_END);
         menu.add(Menu.NONE, R.id.download, 3, R.string.DOWNLOAD_ITEM);
     }
-
 }

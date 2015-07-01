@@ -46,6 +46,7 @@ public class IconRowAdapter extends BaseAdapter {
      */
     private List<IconRow> mRows = new ArrayList<IconRow>();
 
+    @Override
     public int getCount() {
         return mRows.size();
     }
@@ -54,14 +55,12 @@ public class IconRowAdapter extends BaseAdapter {
         return mRows.get(position).getIcon();
     }
 
-    public IconRow getItem(int position) {
-        return mRows.get(position);
+    @Override
+    public CharSequence getItem(int position) {
+        return mRows.get(position).getText();
     }
 
-    public String getText(int position) {
-        return mRows.get(position).getText().toString();
-    }
-
+    @Override
     public long getItemId(int position) {
         return mRows.get(position).getId();
     }
@@ -96,6 +95,7 @@ public class IconRowAdapter extends BaseAdapter {
         mRows = rows;
     }
 
+    @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         View row = getActivity().getLayoutInflater().inflate(rowLayout, parent, false);
         TextView text1 = (TextView) row.findViewById(textId);

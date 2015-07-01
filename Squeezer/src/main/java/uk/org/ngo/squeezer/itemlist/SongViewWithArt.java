@@ -17,9 +17,8 @@
 package uk.org.ngo.squeezer.itemlist;
 
 
+import android.net.Uri;
 import android.view.View;
-
-import java.util.EnumSet;
 
 import uk.org.ngo.squeezer.R;
 import uk.org.ngo.squeezer.framework.ItemListActivity;
@@ -37,21 +36,22 @@ public class SongViewWithArt extends SongView {
     public SongViewWithArt(ItemListActivity activity) {
         super(activity);
 
-        setViewParams(EnumSet.of(ViewParams.ICON, ViewParams.TWO_LINE, ViewParams.CONTEXT_BUTTON));
-        setLoadingViewParams(EnumSet.of(ViewParams.ICON, ViewParams.TWO_LINE));
+        setViewParams(VIEW_PARAM_ICON | VIEW_PARAM_TWO_LINE | VIEW_PARAM_CONTEXT_BUTTON);
+        setLoadingViewParams(VIEW_PARAM_ICON | VIEW_PARAM_TWO_LINE);
     }
 
     @Override
-    public void bindView(View view, Song item, ImageFetcher imageFetcher) {
-        super.bindView(view, item, imageFetcher);
+    public void bindView(View view, Song item) {
+        super.bindView(view, item);
 
         ViewHolder viewHolder = (ViewHolder) view.getTag();
-        String artworkUrl = getAlbumArtUrl(item.getArtwork_track_id());
-        if (artworkUrl == null) {
+        Uri artworkUrl = item.getArtworkUrl();
+        if (artworkUrl.equals(Uri.EMPTY)) {
             viewHolder.icon.setImageResource(
                     item.isRemote() ? R.drawable.icon_iradio_noart : R.drawable.icon_album_noart);
         } else {
-            imageFetcher.loadImage(artworkUrl, viewHolder.icon);
+            ImageFetcher.getInstance(getActivity()).loadImage(artworkUrl, viewHolder.icon,
+                    mIconWidth, mIconHeight);
         }
     }
 

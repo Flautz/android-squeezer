@@ -20,14 +20,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
-
-import java.util.EnumSet;
 
 import uk.org.ngo.squeezer.Preferences;
 import uk.org.ngo.squeezer.R;
@@ -48,7 +45,6 @@ import uk.org.ngo.squeezer.model.Genre;
 import uk.org.ngo.squeezer.model.Song;
 import uk.org.ngo.squeezer.model.Year;
 import uk.org.ngo.squeezer.service.ISqueezeService;
-import uk.org.ngo.squeezer.util.ImageFetcher;
 
 /**
  * Lists albums, optionally filtered to match specific criteria.
@@ -123,21 +119,6 @@ public class AlbumListActivity extends BaseListActivity<Album>
     }
 
     @Override
-    protected ImageFetcher createImageFetcher() {
-        // Get an ImageFetcher to scale artwork to the size of the icon view.
-        Resources resources = getResources();
-        int height, width;
-        if (listLayout == AlbumViewDialog.AlbumListLayout.grid) {
-            height = resources.getDimensionPixelSize(R.dimen.album_art_icon_grid_height);
-            width = resources.getDimensionPixelSize(R.dimen.album_art_icon_grid_width);
-        } else {
-            height = resources.getDimensionPixelSize(R.dimen.album_art_icon_height);
-            width = resources.getDimensionPixelSize(R.dimen.album_art_icon_width);
-        }
-        return super.createImageFetcher(height, width);
-    }
-
-    @Override
     public void onCreate(Bundle savedInstanceState) {
         setListLayout();
         super.onCreate(savedInstanceState);
@@ -166,20 +147,20 @@ public class AlbumListActivity extends BaseListActivity<Album>
         }
 
         TextView header = (TextView) findViewById(R.id.header);
-        EnumSet<AlbumView.Details> details = EnumSet.allOf(AlbumView.Details.class);
+        @AlbumView.SecondLineDetails int details = AlbumView.DETAILS_ALL;
         if (artist != null) {
-            details.remove(AlbumView.Details.ARTIST);
+            details &= ~AlbumView.DETAILS_ARTIST;
             header.setText(getString(R.string.albums_by_artist_header, artist.getName()));
             header.setVisibility(View.VISIBLE);
             ((AlbumView) getItemView()).setArtist(artist);
         }
         if (genre != null) {
-            details.remove(AlbumView.Details.GENRE);
+            details &= ~AlbumView.DETAILS_GENRE;
             header.setText(getString(R.string.albums_by_genre_header, genre.getName()));
             header.setVisibility(View.VISIBLE);
         }
         if (year != null) {
-            details.remove(AlbumView.Details.YEAR);
+            details &= ~AlbumView.DETAILS_YEAR;
             header.setText(getString(R.string.albums_by_year_header, year.getName()));
             header.setVisibility(View.VISIBLE);
         }
@@ -207,10 +188,12 @@ public class AlbumListActivity extends BaseListActivity<Album>
                 artist, getYear(), getGenre(), song);
     }
 
+    @Override
     public AlbumViewDialog.AlbumsSortOrder getSortOrder() {
         return sortOrder;
     }
 
+    @Override
     public void setSortOrder(AlbumViewDialog.AlbumsSortOrder sortOrder) {
         ISqueezeService service = getService();
         if (service == null) {
@@ -223,6 +206,7 @@ public class AlbumListActivity extends BaseListActivity<Album>
         clearAndReOrderItems();
     }
 
+    @Override
     public AlbumViewDialog.AlbumListLayout getListLayout() {
         return listLayout;
     }
@@ -246,6 +230,7 @@ public class AlbumListActivity extends BaseListActivity<Album>
         }
     }
 
+    @Override
     public void setListLayout(AlbumViewDialog.AlbumListLayout listLayout) {
         SharedPreferences preferences = getSharedPreferences(Preferences.NAME, 0);
         SharedPreferences.Editor editor = preferences.edit();

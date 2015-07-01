@@ -18,15 +18,22 @@ package uk.org.ngo.squeezer.service.event;
 
 import android.support.annotation.NonNull;
 
+import uk.org.ngo.squeezer.model.Player;
 import uk.org.ngo.squeezer.model.PlayerState;
 
-/** Event sent when the active player's play status changes. */
+/** Event sent when a player's play status changes. */
 public class PlayStatusChanged {
     /** The new play status. */
     @NonNull
-    public final PlayerState.PlayStatus mPlayStatus;
+    @PlayerState.PlayState
+    public final String playStatus;
 
-    public PlayStatusChanged(@NonNull PlayerState.PlayStatus playStatus) {
-        mPlayStatus = playStatus;
+    /** The affected player. */
+    @NonNull
+    public final Player player;
+
+    public PlayStatusChanged(@NonNull @PlayerState.PlayState String playStatus, @NonNull Player player) {
+        this.playStatus = playStatus;
+        this.player = player;
     }
 }

@@ -44,6 +44,7 @@ import uk.org.ngo.squeezer.service.ISqueezeService;
 import uk.org.ngo.squeezer.service.event.HandshakeComplete;
 import uk.org.ngo.squeezer.service.event.PlayerStateChanged;
 import uk.org.ngo.squeezer.service.event.PlayerVolume;
+import uk.org.ngo.squeezer.service.event.PlayersChanged;
 
 
 public class PlayerListActivity extends ItemListActivity implements
@@ -60,51 +61,8 @@ public class PlayerListActivity extends ItemListActivity implements
     /** An update arrived while tracking touches. UI should be re-synced. */
     private boolean mUpdateWhileTracking = false;
 
-    private final Handler uiThreadHandler = new UiThreadHandler(this);
-
     /** Map from player IDs to Players synced to that player ID. */
     private final Multimap<String, Player> mPlayerSyncGroups = HashMultimap.create();
-
-    private final static class UiThreadHandler extends Handler {
-        private static final int VOLUME_CHANGE = 1;
-        private static final int PLAYER_STATE = 2;
-
-        final WeakReference<PlayerListActivity> activity;
-
-        public UiThreadHandler(PlayerListActivity activity) {
-            this.activity = new WeakReference<PlayerListActivity>(activity);
-        }
-
-        @Override
-        public void handleMessage(Message message) {
-            switch (message.what) {
-                case VOLUME_CHANGE:
-                    activity.get().onVolumeChanged(message.arg1, (Player)message.obj);
-                    break;
-                case PLAYER_STATE:
-                    activity.get().onPlayerStateReceived();
-                    break;
-            }
-        }
-    }
-
-    private void onVolumeChanged(int newVolume, Player player) {
-        PlayerState playerState = getService().getPlayerState(player.getId());
-        if (playerState != null) {
-            playerState.setCurrentVolume(newVolume);
-            Log.d("PlayerListActivity", "Received new volume for + " + player.getName() + " vol: " + newVolume);
-            if (!mTrackingTouch)
-                mResultsAdapter.notifyDataSetChanged();
-        }
-    }
-
-    private void onPlayerStateReceived() {
-        if (!mTrackingTouch) {
-            updateAndExpandPlayerList();
-        } else {
-            mUpdateWhileTracking = true;
-        }
-    }
 
     /**
      * Updates the adapter with the current players, and ensures that the list view is
@@ -127,7 +85,7 @@ public class PlayerListActivity extends ItemListActivity implements
         if (savedInstanceState != null)
             currentPlayer = savedInstanceState.getParcelable(CURRENT_PLAYER);
 
-        mResultsAdapter = new PlayerListAdapter(this, getImageFetcher());
+        mResultsAdapter = new PlayerListAdapter(this);
         mResultsExpandableListView = (ExpandableListView) findViewById(R.id.expandable_list);
 
         mResultsExpandableListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
@@ -195,14 +153,18 @@ public class PlayerListActivity extends ItemListActivity implements
         updateAndExpandPlayerList();
     }
 
-    public void onEvent(PlayerStateChanged event) {
-        uiThreadHandler.obtainMessage(UiThreadHandler.PLAYER_STATE, 0, 0).sendToTarget();
+    public void onEventMainThread(PlayerStateChanged event) {
+        if (!mTrackingTouch) {
+            updateAndExpandPlayerList();
+        } else {
+            mUpdateWhileTracking = true;
+        }
     }
 
-    @Override
-    public void onEvent(PlayerVolume event) {
-        uiThreadHandler.obtainMessage(UiThreadHandler.VOLUME_CHANGE, event.mVolume,
-                0, event.mPlayer).sendToTarget();
+    public void onEventMainThread(PlayerVolume event) {
+        if (!mTrackingTouch) {
+            mResultsAdapter.notifyDataSetChanged();
+        }
     }
 
     /**
@@ -249,6 +211,7 @@ public class PlayerListActivity extends ItemListActivity implements
         }
     }
 
+    @Override
     @NonNull
     public Multimap<String, Player> getPlayerSyncGroups() {
         return mPlayerSyncGroups;
@@ -258,6 +221,7 @@ public class PlayerListActivity extends ItemListActivity implements
         return getService().getPlayerState(id);
     }
 
+    @Override
     public Player getCurrentPlayer() {
         return currentPlayer;
     }
@@ -297,6 +261,7 @@ public class PlayerListActivity extends ItemListActivity implements
      * @param slave the player to sync.
      * @param masterId ID of the player to sync to.
      */
+    @Override
     public void syncPlayerToPlayer(@NonNull Player slave, @NonNull String masterId) {
         getService().syncPlayerToPlayer(slave, masterId);
     }
@@ -306,6 +271,7 @@ public class PlayerListActivity extends ItemListActivity implements
      *
      * @param player the player to be removed from sync groups.
      */
+    @Override
     public void unsyncPlayer(@NonNull Player player) {
         getService().unsyncPlayer(player);
     }

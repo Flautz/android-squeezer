@@ -16,35 +16,32 @@
 
 package uk.org.ngo.squeezer.service;
 
-import android.net.wifi.WifiManager;
-import android.support.annotation.Nullable;
+import android.support.annotation.IntDef;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
-import uk.org.ngo.squeezer.R;
-import uk.org.ngo.squeezer.Squeezer;
-import uk.org.ngo.squeezer.model.Player;
-import uk.org.ngo.squeezer.model.PlayerState;
+import de.greenrobot.event.EventBus;
+import uk.org.ngo.squeezer.Util;
 import uk.org.ngo.squeezer.service.event.ConnectionChanged;
 
-class ConnectionState {
+public class ConnectionState {
 
     private static final String TAG = "ConnectionState";
 
@@ -57,10 +54,28 @@ class ConnectionState {
     // the server of the disconnection.
     private final AtomicInteger currentConnectionGeneration = new AtomicInteger(0);
 
-    // Connection state:
-    private final AtomicBoolean isConnectInProgress = new AtomicBoolean(false);
+    // Connection state machine
+    @IntDef({DISCONNECTED, CONNECTION_STARTED, CONNECTION_FAILED, CONNECTION_COMPLETED,
+            LOGIN_STARTED, LOGIN_FAILED, LOGIN_COMPLETED})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ConnectionStates {}
+    /** Ordinarily disconnected from the server. */
+    public static final int DISCONNECTED = 0;
+    /** A connection has been started. */
+    public static final int CONNECTION_STARTED = 1;
+    /** The connection to the server did not complete. */
+    public static final int CONNECTION_FAILED = 2;
+    /** The connection to the server completed. */
+    public static final int CONNECTION_COMPLETED = 3;
+    /** The login process has started. */
+    public static final int LOGIN_STARTED = 4;
+    /** The login process has failed, the server is disconnected. */
+    public static final int LOGIN_FAILED = 5;
+    /** The login process completed, the handshake can start. */
+    public static final int LOGIN_COMPLETED = 6;
 
-    private final AtomicBoolean isConnected = new AtomicBoolean(false);
+    @ConnectionStates
+    private volatile int mConnectionState = DISCONNECTED;
 
     /** Does the server support "favorites items" queries? */
     private final AtomicBoolean mCanFavorites = new AtomicBoolean(false);
@@ -78,11 +93,6 @@ class ConnectionState {
 
     private final AtomicReference<PrintWriter> socketWriter = new AtomicReference<PrintWriter>();
 
-    private final AtomicReference<Player> activePlayer = new AtomicReference<Player>();
-
-    /** Map Player IDs to the {@link uk.org.ngo.squeezer.model.Player} with that ID. */
-    private final Map<String, Player> mPlayers = new HashMap<String, Player>();
-
     // Where we connected (or are connecting) to:
     private final AtomicReference<String> currentHost = new AtomicReference<String>();
 
@@ -96,46 +106,7 @@ class ConnectionState {
 
     private final AtomicReference<String[]> mediaDirs = new AtomicReference<String[]>();
 
-    private WifiManager.WifiLock wifiLock;
-
-    void setWifiLock(WifiManager.WifiLock wifiLock) {
-        this.wifiLock = wifiLock;
-    }
-
-    void updateWifiLock(boolean state) {
-        // TODO: this might be running in the wrong thread.  Is wifiLock thread-safe?
-        if (state && !wifiLock.isHeld()) {
-            Log.v(TAG, "Locking wifi while playing.");
-            wifiLock.acquire();
-        }
-        if (!state && wifiLock.isHeld()) {
-            Log.v(TAG, "Unlocking wifi.");
-            try {
-                wifiLock.release();
-                // Seen a crash here with:
-                //
-                // Permission Denial: broadcastIntent() requesting a sticky
-                // broadcast
-                // from pid=29506, uid=10061 requires
-                // android.permission.BROADCAST_STICKY
-                //
-                // Catching the exception (which seems harmless) seems better
-                // than requesting an additional permission.
-
-                // Seen a crash here with
-                //
-                // java.lang.RuntimeException: WifiLock under-locked
-                // Squeezer_WifiLock
-                //
-                // Both crashes occurred when the wifi was disabled, on HTC Hero
-                // devices running 2.1-update1.
-            } catch (SecurityException e) {
-                Log.v(TAG, "Caught odd SecurityException releasing wifilock");
-            }
-        }
-    }
-
-    void disconnect(SqueezeService service, boolean loginFailed) {
+    void disconnect(EventBus eventBus, boolean loginFailed) {
         Log.v(TAG, "disconnect" + (loginFailed ? ": authentication failure" : ""));
         currentConnectionGeneration.incrementAndGet();
         Socket socket = socketRef.get();
@@ -148,67 +119,27 @@ class ConnectionState {
         socketRef.set(null);
         socketWriter.set(null);
 
-        setConnectionState(service, false, false, loginFailed);
-
+        if (loginFailed) {
+            setConnectionState(eventBus, LOGIN_FAILED);
+        } else {
+            setConnectionState(eventBus, DISCONNECTED);
+        }
         httpPort.set(null);
-        activePlayer.set(null);
         mediaDirs.set(null);
     }
 
-    private void setConnectionState(final SqueezeService service, final boolean currentState,
-            final boolean postConnect, final boolean loginFailed) {
-        isConnected.set(currentState);
-        if (postConnect) {
-            isConnectInProgress.set(false);
-        }
-
-        service.mEventBus.postSticky(new ConnectionChanged(currentState, postConnect, loginFailed));
-    }
-
-    @Nullable Player getActivePlayer() {
-        return activePlayer.get();
-    }
-
-    void setActivePlayer(@Nullable Player player) {
-        activePlayer.set(player);
-    }
-
-
-    @Nullable public PlayerState getActivePlayerState() {
-        if (activePlayer.get() == null)
-            return null;
-
-        return activePlayer.get().getPlayerState();
-    }
-
-    @Nullable public PlayerState getPlayerState(String playerId) {
-        if (!mPlayers.containsKey(playerId))
-            return null;
-
-        return mPlayers.get(playerId).getPlayerState();
-    }
-
-    List<Player> getPlayers() {
-        return new ArrayList<Player>(mPlayers.values());  // XXX: Immutable list? Return the map?
-    }
-
-    void clearPlayers() {
-        mPlayers.clear();
-    }
-
-    public void addPlayer(Player player) {
-        mPlayers.put(player.getId(), player);
-    }
-
-    void addPlayers(List<Player> players) {
-        for (Player player : players) {
-            mPlayers.put(player.getId(), player);
-        }
-    }
-
-    @Nullable
-    Player getPlayer(String playerId) {
-        return mPlayers.get(playerId);
+    /**
+     * Sets a new connection state, and posts a sticky
+     * {@link uk.org.ngo.squeezer.service.event.ConnectionChanged} event with the new state.
+     *
+     * @param eventBus The eventbus to post the event to.
+     * @param connectionState The new connection state.
+     */
+    void setConnectionState(@NonNull EventBus eventBus,
+            @ConnectionStates int connectionState) {
+        Log.d(TAG, "Setting connection state to: " + connectionState);
+        mConnectionState = connectionState;
+        eventBus.postSticky(new ConnectionChanged(mConnectionState));
     }
 
     PrintWriter getSocketWriter() {
@@ -269,42 +200,64 @@ class ConnectionState {
         return preferredAlbumSort.get();
     }
 
+    /**
+     * @return True if the socket connection to the server has completed.
+     */
     boolean isConnected() {
-        return isConnected.get();
+        switch (mConnectionState) {
+            case CONNECTION_COMPLETED:
+            case LOGIN_STARTED:
+            case LOGIN_COMPLETED:
+                return true;
+
+            default:
+                return false;
+        }
     }
 
+    /**
+     * @return True if the socket connection to the server has started, but not yet
+     *     completed (successfully or unsuccessfully).
+     */
     boolean isConnectInProgress() {
-        return isConnectInProgress.get();
+        return mConnectionState == CONNECTION_STARTED;
     }
 
-    void startListeningThread(SqueezeService service) {
-        Thread listeningThread = new ListeningThread(service, socketRef.get(),
+    void startListeningThread(@NonNull EventBus eventBus, @NonNull Executor executor, CliClient cli) {
+        Thread listeningThread = new ListeningThread(eventBus, executor, cli, socketRef.get(),
                 currentConnectionGeneration.incrementAndGet());
         listeningThread.start();
     }
 
     private class ListeningThread extends Thread {
 
-        private final SqueezeService service;
+        @NonNull private final EventBus mEventBus;
+
+        @NonNull private final Executor mExecutor;
 
         private final Socket socket;
 
+        private final CliClient cli;
+
         private final int generationNumber;
 
-        private ListeningThread(SqueezeService service, Socket socket, int generationNumber) {
-            this.service = service;
+        private ListeningThread(@NonNull EventBus eventBus, @NonNull Executor executor, CliClient cli, Socket socket, int generationNumber) {
+            mEventBus = eventBus;
+            mExecutor = executor;
+            this.cli = cli;
             this.socket = socket;
             this.generationNumber = generationNumber;
         }
 
         @Override
         public void run() {
+            Log.d(TAG, "Listening thread started");
             BufferedReader in;
             try {
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()), 128);
             } catch (IOException e) {
                 Log.v(TAG, "IOException while creating BufferedReader: " + e);
-                service.disconnect();
+                cli.disconnect(false);
                 return;
             }
             IOException exception = null;
@@ -322,7 +275,7 @@ class ConnectionState {
                     // else we should notify about it.
                     if (currentConnectionGeneration.get() == generationNumber) {
                         Log.v(TAG, "Server disconnected; exception=" + exception);
-                        service.disconnect(exception == null);
+                        cli.disconnect(exception == null);
                     } else {
                         // Who cares.
                         Log.v(TAG, "Old generation connection disconnected, as expected.");
@@ -330,17 +283,26 @@ class ConnectionState {
                     return;
                 }
                 final String inputLine = line;
-                service.executor.execute(new Runnable() {
+
+                // If a login attempt was in progress and this is a line that does not start
+                // with "login " then the login must have been successful (otherwise the
+                // server would have disconnected), so update the connection state accordingly.
+                if (mConnectionState == LOGIN_STARTED && !inputLine.startsWith("login ")) {
+                    setConnectionState(mEventBus, LOGIN_COMPLETED);
+                }
+                mExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        service.onLineReceived(inputLine);
+                        cli.onLineReceived(inputLine);
                     }
                 });
             }
         }
     }
 
-    void startConnect(final SqueezeService service, String hostPort, final String userName,
+    void startConnect(final SqueezeService service, @NonNull final EventBus eventBus,
+                      @NonNull final Executor executor,
+                      final CliClient cli, String hostPort, final String userName,
                       final String password) {
         Log.v(TAG, "startConnect");
         // Common mistakes, based on crash reports...
@@ -353,8 +315,8 @@ class ConnectionState {
             hostPort = hostPort.substring(0, hostPort.length() - 1);
         }
 
-        final int port = parsePort(hostPort);
-        final String host = parseHost(hostPort);
+        final int port = Util.parsePort(hostPort);
+        final String host = Util.parseHost(hostPort);
         final String cleanHostPort = host + ":" + port;
 
         currentHost.set(host);
@@ -364,23 +326,23 @@ class ConnectionState {
         this.password.set(password);
 
         // Start the off-thread connect.
-        service.executor.execute(new Runnable() {
+        executor.execute(new Runnable() {
             @Override
             public void run() {
+                Log.d(TAG, "Ensuring service is disconnected");
                 service.disconnect();
                 Socket socket = new Socket();
                 try {
                     Log.d(TAG, "Connecting to: " + cleanHostPort);
-                    isConnectInProgress.set(true);
+                    setConnectionState(eventBus, CONNECTION_STARTED);
                     socket.connect(new InetSocketAddress(host, port),
                             4000 /* ms timeout */);
                     socketRef.set(socket);
                     Log.d(TAG, "Connected to: " + cleanHostPort);
                     socketWriter.set(new PrintWriter(socket.getOutputStream(), true));
-                    setConnectionState(service, true, true, false);
-                    Log.d(TAG, "connection state broadcasted true.");
-                    startListeningThread(service);
-                    service.onCliPortConnectionEstablished(userName, password);
+                    setConnectionState(eventBus, CONNECTION_COMPLETED);
+                    startListeningThread(eventBus, executor, cli);
+                    onCliPortConnectionEstablished(eventBus, cli, userName, password);
                     Authenticator.setDefault(new Authenticator() {
                         @Override
                         public PasswordAuthentication getPasswordAuthentication() {
@@ -389,42 +351,38 @@ class ConnectionState {
                     });
                 } catch (SocketTimeoutException e) {
                     Log.e(TAG, "Socket timeout connecting to: " + cleanHostPort);
-                    setConnectionState(service, false, true, false);
+                    setConnectionState(eventBus, CONNECTION_FAILED);
                 } catch (IOException e) {
                     Log.e(TAG, "IOException connecting to: " + cleanHostPort);
-                    setConnectionState(service, false, true, false);
+                    setConnectionState(eventBus, CONNECTION_FAILED);
                 }
             }
 
         });
     }
 
-    private static String parseHost(String hostPort) {
-        if (hostPort == null) {
-            return "";
-        }
-        int colonPos = hostPort.indexOf(":");
-        if (colonPos == -1) {
-            return hostPort;
-        }
-        return hostPort.substring(0, colonPos);
+    /**
+     * Authenticate on the SqueezeServer.
+     * <p/>
+     * The server does
+     * <pre>
+     * login user wrongpassword
+     * login user ******
+     * (Connection terminated)
+     * </pre>
+     * instead of as documented
+     * <pre>
+     * login user wrongpassword
+     * (Connection terminated)
+     * </pre>
+     * therefore a disconnect when handshake (the next step after authentication) is not completed,
+     * is considered an authentication failure.
+     */
+    void onCliPortConnectionEstablished(final EventBus eventBus, final CliClient cli, final String userName, final String password) {
+        setConnectionState(eventBus, ConnectionState.LOGIN_STARTED);
+        cli.sendCommandImmediately("login " + Util.encode(userName) + " " + Util.encode(password));
     }
 
-    private static int parsePort(String hostPort) {
-        if (hostPort == null) {
-            return Squeezer.getContext().getResources().getInteger(R.integer.DefaultPort);
-        }
-        int colonPos = hostPort.indexOf(":");
-        if (colonPos == -1) {
-            return Squeezer.getContext().getResources().getInteger(R.integer.DefaultPort);
-        }
-        try {
-            return Integer.parseInt(hostPort.substring(colonPos + 1));
-        } catch (NumberFormatException unused) {
-            Log.d(TAG, "Can't parse port out of " + hostPort);
-            return Squeezer.getContext().getResources().getInteger(R.integer.DefaultPort);
-        }
-    }
 
     Integer getHttpPort() {
         return httpPort.get();

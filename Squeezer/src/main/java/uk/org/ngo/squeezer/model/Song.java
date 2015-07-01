@@ -16,9 +16,11 @@
 
 package uk.org.ngo.squeezer.model;
 
+import android.net.Uri;
 import android.os.Parcel;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -30,6 +32,7 @@ import uk.org.ngo.squeezer.framework.ArtworkItem;
 import uk.org.ngo.squeezer.service.ISqueezeService;
 
 public class Song extends ArtworkItem {
+    private static final String TAG = "Song";
 
     @Override
     public String getPlaylistTag() {
@@ -115,40 +118,41 @@ public class Song extends ArtworkItem {
         return mTrackNum;
     }
 
-    @NonNull private final String mUrl;
+    /** The URL of the track on the server. This is the file:/// URL, not the URL to download it. */
+    @NonNull private final Uri mUrl;
 
     @NonNull
-    public String getUrl() {
+    public Uri getUrl() {
         return mUrl;
     }
 
-    @NonNull private String mArtworkUrl;
+    /** The URL to use to download the song. */
+    @NonNull private Uri mDownloadUrl;
+
+    @NonNull
+    public Uri getDownloadUrl() {
+        return mDownloadUrl;
+    }
+
+    @NonNull private final String mButtons;
+
+    @NonNull
+    public String getButtons() {
+        return mButtons;
+    }
+
+    @NonNull private Uri mArtworkUrl = Uri.EMPTY;
 
     /**
      * @return Whether the song has artwork associated with it.
      */
     public boolean hasArtwork() {
-        if (!mRemote) {
-            return getArtwork_track_id() != null;
-        } else {
-            return ! "".equals(mArtworkUrl);
-        }
+        return ! (mArtworkUrl == Uri.EMPTY);
     }
 
     @NonNull
-    public String getArtworkUrl() {
+    public Uri getArtworkUrl() {
         return mArtworkUrl;
-    }
-
-    @Nullable
-    public String getArtworkUrl(ISqueezeService service) {
-        if (getArtwork_track_id() != null) {
-            if (service == null) {
-                return null;
-            }
-            return service.getAlbumArtUrl(getArtwork_track_id());
-        }
-        return getArtworkUrl();
     }
 
     public Song(Map<String, String> record) {
@@ -171,39 +175,29 @@ public class Song extends ArtworkItem {
         mAlbumId = Strings.nullToEmpty(record.get("album_id"));
         mRemote = Util.parseDecimalIntOrZero(record.get("remote")) != 0;
         mTrackNum = Util.parseDecimalInt(record.get("tracknum"), 1);
-        mArtworkUrl = Strings.nullToEmpty(record.get("artwork_url"));
-        mUrl = Strings.nullToEmpty(record.get("url"));
 
-        // Work around a (possible) bug in the Squeezeserver.
-        //
-        // I've seen tracks where the "coverart" tag comes back positive (1)
-        // but there's no "artwork_track_id" tag. If that happens, use this
-        // song's ID as the artwork_track_id.
+        mArtworkUrl = Uri.parse(Strings.nullToEmpty(record.get("artwork_url")));
+        mUrl = Uri.parse(Strings.nullToEmpty(record.get("url")));
+        mDownloadUrl = Uri.parse(Strings.nullToEmpty(record.get("download_url")));
+        mButtons = Strings.nullToEmpty(record.get("buttons"));
+
         String artworkTrackId = record.get("artwork_track_id");
-        if (artworkTrackId != null) {
-            setArtwork_track_id(artworkTrackId);
-        } else {
-            // If there's no cover art then the server doesn't respond
-            // "coverart:0" or something useful like that, it just doesn't
-            // include a response.  Hence these shenanigans.
-            String coverArt = record.get("coverart");
-            if ("1".equals(coverArt)) {
-                setArtwork_track_id(getId());
-            }
-        }
 
         Album album = new Album(mAlbumId, mAlbumName);
         album.setArtist(mCompilation ? "Various" : mArtist);
         album.setArtwork_track_id(artworkTrackId);
+        album.setArtworkUrl(mArtworkUrl);
         album.setYear(mYear);
         mAlbum = album;
     }
 
     public static final Creator<Song> CREATOR = new Creator<Song>() {
+        @Override
         public Song[] newArray(int size) {
             return new Song[size];
         }
 
+        @Override
         public Song createFromParcel(Parcel source) {
             return new Song(source);
         }
@@ -221,9 +215,12 @@ public class Song extends ArtworkItem {
         mAlbumId = source.readString();
         setArtwork_track_id(source.readString());
         mTrackNum = source.readInt();
-        mUrl = source.readString();
+        mUrl = Uri.parse(source.readString());
+        mButtons = source.readString();
+        mDownloadUrl = Uri.parse(source.readString());
     }
 
+    @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(getId());
         dest.writeString(mName);
@@ -236,12 +233,14 @@ public class Song extends ArtworkItem {
         dest.writeString(mAlbumId);
         dest.writeString(getArtwork_track_id());
         dest.writeInt(mTrackNum);
-        dest.writeString(mUrl);
+        dest.writeString(mUrl.toString());
+        dest.writeString(mButtons);
+        dest.writeString(mDownloadUrl.toString());
     }
 
     @Override
-    public String toString() {
-        return "id=" + getId() + ", mName=" + mName + ", mArtist=" + mArtist + ", year=" + mYear;
+    public String toStringOpen() {
+        return super.toStringOpen() + ", mArtist: " + mArtist + ", year: " + mYear;
     }
 
     /**

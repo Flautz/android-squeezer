@@ -119,6 +119,7 @@ public class Player extends Item {
         return mConnected;
     }
 
+    @NonNull
     public PlayerState getPlayerState() {
         return mPlayerState;
     }
@@ -128,15 +129,18 @@ public class Player extends Item {
     }
 
     public static final Creator<Player> CREATOR = new Creator<Player>() {
+        @Override
         public Player[] newArray(int size) {
             return new Player[size];
         }
 
+        @Override
         public Player createFromParcel(Parcel source) {
             return new Player(source);
         }
     };
 
+    @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(getId());
         dest.writeString(mIp);
@@ -162,7 +166,7 @@ public class Player extends Item {
     /**
      * Comparator to compare two players by ID.
      */
-    public static Comparator<Player> compareById = new Comparator<Player>() {
+    public static final Comparator<Player> compareById = new Comparator<Player>() {
         @Override
         public int compare(Player lhs, Player rhs) {
             return lhs.getId().compareTo(rhs.getId());
@@ -170,8 +174,8 @@ public class Player extends Item {
     };
 
     @Override
-    public String toString() {
-        return "id=" + getId() + ", name=" + mName + ", model=" + mModel + ", canpoweroff="
-                + mCanPowerOff + ", ip=" + mIp + ", connected=" + mConnected;
+    public String toStringOpen() {
+        return super.toStringOpen() + ", model: " + mModel + ", canpoweroff: " + mCanPowerOff
+                + ", ip: " + mIp + ", connected: " + mConnected;
     }
 }

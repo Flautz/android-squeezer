@@ -19,7 +19,7 @@ package uk.org.ngo.squeezer.itemlist;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
@@ -32,8 +32,6 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import java.util.EnumSet;
 
 import uk.org.ngo.squeezer.Preferences;
 import uk.org.ngo.squeezer.R;
@@ -134,6 +132,7 @@ public class SongListActivity extends BaseListActivity<Song>
 
         // Set the album header.
         if (album != null) {
+            ImageView artwork = (ImageView) findViewById(R.id.album);
             TextView albumView = (TextView) findViewById(R.id.albumname);
             TextView artistView = (TextView) findViewById(R.id.artistname);
             TextView yearView = (TextView) findViewById(R.id.yearname);
@@ -143,6 +142,14 @@ public class SongListActivity extends BaseListActivity<Song>
             artistView.setText(album.getArtist());
             if (album.getYear() != 0) {
                 yearView.setText(Integer.toString(album.getYear()));
+            }
+
+            Uri artworkUrl = album.getArtworkUrl();
+
+            if (artworkUrl.equals(Uri.EMPTY)) {
+                artwork.setImageResource(R.drawable.icon_album_noart);
+            } else {
+                ImageFetcher.getInstance(this).loadImage(artworkUrl, artwork);
             }
 
             btnContextMenu.setOnCreateContextMenuListener(this);
@@ -208,14 +215,12 @@ public class SongListActivity extends BaseListActivity<Song>
         // Set artwork that requires a service connection.
         if (album != null) {
             ImageView artwork = (ImageView) findViewById(R.id.album);
+            Uri artworkUrl = album.getArtworkUrl();
 
-            String artworkUrl = ((SongView) getItemView())
-                    .getAlbumArtUrl(album.getArtwork_track_id());
-
-            if (artworkUrl == null) {
+            if (artworkUrl.equals(Uri.EMPTY)) {
                 artwork.setImageResource(R.drawable.icon_album_noart);
             } else {
-                getImageFetcher().loadImage(artworkUrl, artwork);
+                ImageFetcher.getInstance(this).loadImage(artworkUrl, artwork);
             }
         }
     }
@@ -223,7 +228,9 @@ public class SongListActivity extends BaseListActivity<Song>
     /**
      * Ensures that the artwork in the UI is updated after the server handshake completes.
      */
+    @Override
     public void onEventMainThread(HandshakeComplete event) {
+        super.onEventMainThread(event);
         updateArtwork();
     }
 
@@ -239,23 +246,19 @@ public class SongListActivity extends BaseListActivity<Song>
     public ItemView<Song> createItemView() {
         if (album != null) {
             songViewLogic = new SongView(this);
-            songViewLogic.setDetails(EnumSet.of(
-                    SongView.Details.TRACK_NO,
-                    SongView.Details.DURATION,
-                    SongView.Details.ARTIST_IF_COMPILATION));
+            songViewLogic.setDetails(SongView.DETAILS_TRACK_NO |
+                    SongView.DETAILS_DURATION |
+                    SongView.DETAILS_ARTIST_IF_COMPILATION);
         } else if (artist != null) {
             songViewLogic = songViewLogicFromListLayout();
-            songViewLogic.setDetails(EnumSet.of(
-                    SongView.Details.DURATION,
-                    SongView.Details.ALBUM,
-                    SongView.Details.YEAR
-            ));
+            songViewLogic.setDetails(SongView.DETAILS_DURATION |
+                    SongView.DETAILS_ALBUM |
+                    SongView.DETAILS_YEAR);
         } else {
             songViewLogic = songViewLogicFromListLayout();
-            songViewLogic.setDetails(EnumSet.of(
-                    SongView.Details.ARTIST,
-                    SongView.Details.ALBUM,
-                    SongView.Details.YEAR));
+            songViewLogic.setDetails(SongView.DETAILS_ARTIST |
+                    SongView.DETAILS_ALBUM |
+                    SongView.DETAILS_YEAR);
         }
 
         return songViewLogic;
@@ -263,21 +266,6 @@ public class SongListActivity extends BaseListActivity<Song>
 
     private SongViewWithArt songViewLogicFromListLayout() {
         return (listLayout == SongViewDialog.SongListLayout.grid) ? new SongGridView(this) : new SongViewWithArt(this);
-    }
-
-    @Override
-    protected ImageFetcher createImageFetcher() {
-        // Get an ImageFetcher to scale artwork to the size of the icon view.
-        Resources resources = getResources();
-        int height, width;
-        if (listLayout == SongViewDialog.SongListLayout.grid) {
-            height = resources.getDimensionPixelSize(R.dimen.album_art_icon_grid_height);
-            width = resources.getDimensionPixelSize(R.dimen.album_art_icon_grid_width);
-        } else {
-            height = resources.getDimensionPixelSize(R.dimen.album_art_icon_height);
-            width = resources.getDimensionPixelSize(R.dimen.album_art_icon_width);
-        }
-        return super.createImageFetcher(height, width);
     }
 
     @Override
@@ -410,7 +398,8 @@ public class SongListActivity extends BaseListActivity<Song>
     public boolean onPrepareOptionsMenu(Menu menu) {
         final boolean boundToService = getService() != null;
 
-        if (album == null) {
+        // Note: Seen a crash reported here where playButton is null (on a rooted device).
+        if (album == null && playButton != null && addButton != null) {
             playButton.setEnabled(boundToService);
             addButton.setEnabled(boundToService);
         }

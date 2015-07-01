@@ -27,9 +27,9 @@ import java.util.Map;
 import uk.org.ngo.squeezer.Util;
 import uk.org.ngo.squeezer.framework.ItemAdapter;
 import uk.org.ngo.squeezer.framework.ItemListActivity;
+import uk.org.ngo.squeezer.framework.SpinnerItemAdapter;
 import uk.org.ngo.squeezer.model.Genre;
 import uk.org.ngo.squeezer.service.ISqueezeService;
-import uk.org.ngo.squeezer.util.ImageFetcher;
 
 public class GenreSpinner {
 
@@ -59,13 +59,13 @@ public class GenreSpinner {
         @Override
         public void onItemsReceived(final int count, final int start, Map<String, String> parameters, final List<Genre> list, Class<Genre> dataType) {
             callback.getUIThreadHandler().post(new Runnable() {
+                @Override
                 public void run() {
                     if (adapter == null) {
                         GenreView itemView = new GenreView(activity) {
                             @Override
                             public View getAdapterView(View convertView, ViewGroup parent,
-                                    Genre item,
-                                    ImageFetcher unused) {
+                                    Genre item) {
                                 return Util.getSpinnerItemView(getActivity(), convertView, parent,
                                         item.getName());
                             }
@@ -78,7 +78,7 @@ public class GenreSpinner {
                             }
 
                         };
-                        adapter = new ItemAdapter<Genre>(itemView, true, null);
+                        adapter = new SpinnerItemAdapter<Genre>(itemView, true);
                         spinner.setAdapter(adapter);
                     }
                     adapter.update(count, start, list);

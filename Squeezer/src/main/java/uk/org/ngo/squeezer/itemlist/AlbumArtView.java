@@ -19,8 +19,6 @@ package uk.org.ngo.squeezer.itemlist;
 
 import android.view.View;
 
-import java.util.EnumSet;
-
 import uk.org.ngo.squeezer.R;
 import uk.org.ngo.squeezer.framework.ArtworkItem;
 import uk.org.ngo.squeezer.framework.ItemListActivity;
@@ -39,8 +37,8 @@ public abstract class AlbumArtView<T extends ArtworkItem> extends
     public AlbumArtView(ItemListActivity activity) {
         super(activity);
 
-        setViewParams(EnumSet.of(ViewParams.ICON, ViewParams.TWO_LINE, ViewParams.CONTEXT_BUTTON));
-        setLoadingViewParams(EnumSet.of(ViewParams.ICON, ViewParams.TWO_LINE));
+        setViewParams(VIEW_PARAM_ICON | VIEW_PARAM_TWO_LINE | VIEW_PARAM_CONTEXT_BUTTON);
+        setLoadingViewParams(VIEW_PARAM_ICON | VIEW_PARAM_TWO_LINE);
     }
 
     /**
@@ -57,26 +55,5 @@ public abstract class AlbumArtView<T extends ArtworkItem> extends
         viewHolder.icon.setImageResource(R.drawable.icon_pending_artwork);
         viewHolder.text1.setText(text);
         viewHolder.text2.setText("");
-    }
-
-    /**
-     * Returns the URL to download the specified album artwork, or null if the artwork does not
-     * exist, or there was a problem with the service.
-     *
-     * @param artwork_track_id
-     *
-     * @return
-     */
-    protected String getAlbumArtUrl(String artwork_track_id) {
-        if (artwork_track_id == null) {
-            return null;
-        }
-
-        ISqueezeService service = getActivity().getService();
-        if (service == null) {
-            return null;
-        }
-
-        return service.getAlbumArtUrl(artwork_track_id);
     }
 }

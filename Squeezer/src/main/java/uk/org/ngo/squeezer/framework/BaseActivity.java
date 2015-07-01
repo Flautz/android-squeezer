@@ -25,8 +25,10 @@ import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.CallSuper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.StringDef;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -36,6 +38,9 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 import uk.org.ngo.squeezer.Preferences;
 import uk.org.ngo.squeezer.R;
@@ -48,6 +53,7 @@ import uk.org.ngo.squeezer.service.ISqueezeService;
 import uk.org.ngo.squeezer.service.ServerString;
 import uk.org.ngo.squeezer.service.SqueezeService;
 import uk.org.ngo.squeezer.service.event.PlayerVolume;
+import uk.org.ngo.squeezer.util.ImageFetcher;
 import uk.org.ngo.squeezer.util.SqueezePlayer;
 import uk.org.ngo.squeezer.util.ThemeManager;
 
@@ -144,9 +150,13 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
         mVolumePanel = new VolumePanel(this);
 
         // If SqueezePlayer is installed, start it
+        // TODO Only when connected (or at least serveraddress is saved)
         if (SqueezePlayer.hasSqueezePlayer(this) && new Preferences(this).controlSqueezePlayer()) {
             squeezePlayer = new SqueezePlayer(this);
         }
+
+        // Ensure that any image fetching tasks started by this activity do not finish prematurely.
+        ImageFetcher.getInstance(this).setExitTasksEarly(false);
     }
 
     @Override
@@ -169,7 +179,20 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
             mRegisteredOnEventBus = false;
         }
 
+        // Ensure that any pending image fetching tasks are unpaused, and finish quickly.
+        ImageFetcher imageFetcher = ImageFetcher.getInstance(this);
+        imageFetcher.setExitTasksEarly(true);
+        imageFetcher.setPauseWork(false);
+
         super.onPause();
+    }
+
+    /**
+     * Clear the image memory cache if memory gets low.
+     */
+    @Override
+    public void onLowMemory() {
+        ImageFetcher.onLowMemory();
     }
 
     @Override
@@ -214,6 +237,7 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
      *
      * @param service The connection to the bound service.
      */
+    @CallSuper
     protected void onServiceConnected(@NonNull ISqueezeService service) {
         supportInvalidateOptionsMenu();
         maybeRegisterOnEventBus(service);
@@ -296,6 +320,7 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
      * changing.
      */
     @Override
+    @CallSuper
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
@@ -308,7 +333,8 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
     }
 
     @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
+    @CallSuper
+    public boolean onKeyUp(int keyCode, @NonNull KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
             case KeyEvent.KEYCODE_VOLUME_DOWN:
@@ -329,8 +355,8 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
     }
 
     public void onEvent(PlayerVolume event) {
-        if (!mIgnoreVolumeChange && mVolumePanel != null && event.mPlayer == mService.getActivePlayer()) {
-            mVolumePanel.postVolumeChanged(event.mVolume, event.mPlayer.getName());
+        if (!mIgnoreVolumeChange && mVolumePanel != null && event.player == mService.getActivePlayer()) {
+            mVolumePanel.postVolumeChanged(event.volume, event.player.getName());
         }
     }
 
@@ -345,17 +371,7 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
     }
 
     public boolean isConnected() {
-        if (mService == null) {
-            return false;
-        }
-        return mService.isConnected();
-    }
-
-    public String getIconUrl(String icon) {
-        if (mService == null || icon == null) {
-            return null;
-        }
-        return mService.getIconUrl(icon);
+        return mService != null && mService.isConnected();
     }
 
     public String getServerString(ServerString stringToken) {
@@ -365,24 +381,24 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
     // This section is just an easier way to call squeeze service
 
     public void play(PlaylistItem item) {
-        playlistControl(PlaylistControlCmd.load, item, R.string.ITEM_PLAYING);
+        playlistControl(PLAYLIST_PLAY_NOW, item, R.string.ITEM_PLAYING);
     }
 
     public void add(PlaylistItem item) {
-        playlistControl(PlaylistControlCmd.add, item, R.string.ITEM_ADDED);
+        playlistControl(PLAYLIST_ADD_TO_END, item, R.string.ITEM_ADDED);
     }
 
     public void insert(PlaylistItem item) {
-        playlistControl(PlaylistControlCmd.insert, item, R.string.ITEM_INSERTED);
+        playlistControl(PLAYLIST_PLAY_AFTER_CURRENT, item, R.string.ITEM_INSERTED);
     }
 
-    private void playlistControl(PlaylistControlCmd cmd, PlaylistItem item, int resId)
+    private void playlistControl(@PlaylistControlCmd String cmd, PlaylistItem item, int resId)
             {
         if (mService == null) {
             return;
         }
 
-        mService.playlistControl(cmd.name(), item);
+        mService.playlistControl(cmd, item);
         Toast.makeText(this, getString(resId, item.getName()), Toast.LENGTH_SHORT).show();
     }
 
@@ -399,11 +415,12 @@ public abstract class BaseActivity extends ActionBarActivity implements HasUiThr
             Toast.makeText(this, R.string.DOWNLOAD_MANAGER_NEEDED, Toast.LENGTH_LONG).show();
     }
 
-    private enum PlaylistControlCmd {
-        load,
-        add,
-        insert
-    }
+    @StringDef({PLAYLIST_PLAY_NOW, PLAYLIST_ADD_TO_END, PLAYLIST_PLAY_AFTER_CURRENT})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PlaylistControlCmd {}
+    public static final String PLAYLIST_PLAY_NOW = "load";
+    public static final String PLAYLIST_ADD_TO_END = "add";
+    public static final String PLAYLIST_PLAY_AFTER_CURRENT = "insert";
 
     /**
      * Look up an attribute resource styled for the current theme.
