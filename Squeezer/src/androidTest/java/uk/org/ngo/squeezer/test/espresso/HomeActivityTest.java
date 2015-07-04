@@ -3,7 +3,6 @@ package uk.org.ngo.squeezer.test.espresso;
 import android.test.ActivityInstrumentationTestCase2;
 
 import uk.org.ngo.squeezer.HomeActivity;
-import uk.org.ngo.squeezer.IconRowAdapter;
 import uk.org.ngo.squeezer.R;
 
 import static android.support.test.espresso.Espresso.onData;
@@ -13,12 +12,8 @@ import static android.support.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static android.support.test.espresso.matcher.ViewMatchers.withId;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.anything;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static uk.org.ngo.squeezer.test.espresso.IconRowAdapterMatchers.withAdaptedData;
 import static uk.org.ngo.squeezer.test.espresso.IconRowAdapterMatchers.withItemContent;
