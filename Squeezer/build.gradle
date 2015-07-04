@@ -54,15 +54,15 @@ dependencies {
     compile 'com.nineoldandroids:library:2.4.0'
     compile project(':libs:datetimepicker')
 
+    androidTestCompile 'com.android.support.test.espresso:espresso-core:2.2'
+    androidTestCompile 'com.android.support.test:rules:0.3'
+    androidTestCompile 'com.android.support.test:runner:0.3'
+
     // JVM tests
     testCompile 'junit:junit:4.12'
 
     // Changelogs, see https://github.com/cketti/ckChangeLog.
     compile 'de.cketti.library.changelog:ckchangelog:1.2.0'
-
-    androidTestCompile 'com.android.support.test.espresso:espresso-core:2.0'
-    androidTestCompile 'com.android.support.test:testing-support-lib:0.1'
-    androidTestCompile 'com.android.support.test:runner:0.3'
 }
 
 android {
