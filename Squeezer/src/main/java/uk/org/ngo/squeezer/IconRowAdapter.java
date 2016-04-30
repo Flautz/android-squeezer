@@ -58,6 +58,7 @@ public class IconRowAdapter extends BaseAdapter {
     @Override
     public CharSequence getItem(int position) {
         return mRows.get(position).getText();
+    }
 
     public String getText(int position) {
         return mRows.get(position).getText().toString();
