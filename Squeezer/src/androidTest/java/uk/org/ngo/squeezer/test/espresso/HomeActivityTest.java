@@ -36,6 +36,9 @@ public class HomeActivityTest extends ActivityInstrumentationTestCase2<HomeActiv
     }
 
     public void testHomeActivityMenu() {
+        // XXX: This will fail when the APK is first installed, as the changelog and tips
+        // dialogs are showing. Need to fix.
+
         // Example: Test that the first view in the list shows "Artists".
         onData(anything())
                 .inAdapterView(withId(R.id.item_list))
