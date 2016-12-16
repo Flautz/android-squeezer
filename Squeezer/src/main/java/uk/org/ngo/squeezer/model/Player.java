@@ -38,7 +38,7 @@ import uk.org.ngo.squeezer.Util;
 import uk.org.ngo.squeezer.framework.Item;
 
 
-public class Player extends Item implements Comparable {
+public class Player extends Item {
 
     private String mName;
 
@@ -58,11 +58,6 @@ public class Player extends Item implements Comparable {
 
     /** Is the player connected? */
     private boolean mConnected;
-
-    @Override
-    public int compareTo(Object otherPlayer) {
-        return this.mName.compareTo(((Player)otherPlayer).mName);
-    }
 
     public static class Pref {
         /** The types of player preferences. */

@@ -468,7 +468,6 @@ public class NowPlayingFragment extends Fragment implements View.OnCreateContext
                 connectedPlayers.add(player);
             }
         }
-        Collections.sort(connectedPlayers); // sort players alphabetically by player name
 
         ActionBar actionBar = mActivity.getSupportActionBar();
 
@@ -629,9 +628,7 @@ public class NowPlayingFragment extends Fragment implements View.OnCreateContext
             if (mFullHeightLayout) {
                 artistText.setText(song.getArtist());
                 totalTime.setText(Util.formatElapsedTime(song.getDuration()));
-                // If remote and number of tracks in playlist is not 1, it's spotify
-                // or another streaming service. Then make prev- en nextbutton available
-                if ((song.isRemote()) && (playerState.getCurrentPlaylistTracksNum() == 1)) {
+                if (song.isRemote()) {
                     if (song.getButtons().length() == 0) {
                         nextButton.setEnabled(false);
                         Util.setAlpha(nextButton, 0.25f);
