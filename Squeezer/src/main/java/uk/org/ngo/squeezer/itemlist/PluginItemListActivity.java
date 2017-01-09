@@ -23,6 +23,7 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.StringDef;
+import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -71,7 +72,7 @@ public class PluginItemListActivity extends BaseListActivity<PluginItem>
             plugin = extras.getParcelable(Plugin.class.getName());
             parent = extras.getParcelable(PluginItem.class.getName());
             findViewById(R.id.search_view).setVisibility(
-                    plugin.isSearchable() ? View.VISIBLE : View.GONE);
+                    isSearchable() ? View.VISIBLE : View.GONE);
 
             ImageButton searchButton = (ImageButton) findViewById(R.id.search_button);
             final EditText searchCriteriaText = (EditText) findViewById(R.id.search_input);
@@ -110,7 +111,7 @@ public class PluginItemListActivity extends BaseListActivity<PluginItem>
     }
 
     private void clearAndReOrderItems(String searchString) {
-        if (getService() != null && !(plugin.isSearchable() && (searchString == null
+        if (getService() != null && !(isSearchable() && (searchString == null
                 || searchString.length() == 0))) {
             search = searchString;
             super.clearAndReOrderItems();
@@ -124,7 +125,8 @@ public class PluginItemListActivity extends BaseListActivity<PluginItem>
 
     @Override
     protected void orderPage(@NonNull ISqueezeService service, int start) {
-        service.pluginItems(start, plugin, parent, search, this);
+        if (!(isSearchable() && TextUtils.isEmpty(search)))
+            service.pluginItems(start, plugin, parent, search, this);
     }
 
 
@@ -237,6 +239,10 @@ public class PluginItemListActivity extends BaseListActivity<PluginItem>
         }
         getService().pluginPlaylistControl(plugin, cmd, item.getId());
         return true;
+    }
+
+    private boolean isSearchable() {
+        return plugin.isSearchable() || (parent != null && "search".equals(parent.getType()));
     }
 
     @StringDef({PLUGIN_PLAYLIST_PLAY, PLUGIN_PLAYLIST_PLAY_NOW, PLUGIN_PLAYLIST_ADD_TO_END,
