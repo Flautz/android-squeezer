@@ -80,6 +80,7 @@ android {
     lintOptions {
         // Downgrade missing translations to non-fatal severity.
         warning 'MissingTranslation'
+		abortOnError false
     }
 
     signingConfigs {
