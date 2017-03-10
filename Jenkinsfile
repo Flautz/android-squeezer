@@ -28,10 +28,13 @@ node
        stage "Lint Report"
             step([$class: 'LintPublisher', pattern: 'Squeezer/build/outputs/lint-results*.xml'])
     }
-		
     catch (err) 
 	{
         currentBuild.result = "FAILURE"
         throw err
+    }
+    finally 
+    {
+        step([$class: 'Mailer', notifyEveryUnstableBuild: true, recipients: 'original@flautz.de', sendToIndividuals: true])
     }
 }
